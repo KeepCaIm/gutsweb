@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2B2822">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Guts">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Guts</title>
+    <script>window.GUTS_BUILD_ID = '26-11-12-20-47';</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    <!-- Start the big downloads before godot.js even runs; the dotnet.* files
+         are otherwise only discovered mid-boot. -->
+    <script>
+        // Opt-in: fetch the .gz siblings the 2dog publish writes (engine, pack
+        // and _framework binaries) and inflate them in the page. For hosts that
+        // serve everything uncompressed. Publishing with
+        // TwoDogWebPrecompressKeepOriginals=false switches it on in the app
+        // bundle. A host that already content-encodes would compress them a
+        // second time.
+        const TWODOG_PCK_GZ = false;
+        // The hints must name the files the engine fetches, or both download.
+        const twodogGz = TWODOG_PCK_GZ && typeof DecompressionStream !== 'undefined';
+        for (const file of ['godot.wasm', 'godot.pck']) {
+            const hint = document.createElement('link');
+            hint.rel = 'preload';
+            hint.as = 'fetch';
+            hint.crossOrigin = 'anonymous';
+            hint.href = twodogGz ? file + '.gz' : file;
+            document.head.appendChild(hint);
+        }
+    </script>
+    <link rel="modulepreload" href="_framework/dotnet.js">
+    <link rel="modulepreload" href="_framework/dotnet.boot.js">
+    <link rel="modulepreload" href="_framework/dotnet.runtime.js">
+    <link rel="modulepreload" href="_framework/dotnet.native.js">
+    <style>
+        /* Palette mirrors GodotClient/src/Colors.cs and the project boot splash. */
+        :root {
+            color-scheme: dark;
+            --guts-bg: #2B2822;
+            --guts-bg-deep: #0E0D0E;
+            --guts-gold: #D9AD52;
+            --guts-gold-bright: #FFD97A;
+            --guts-gold-dim: #6B5429;
+            --guts-border: #6B5C42;
+            --guts-text: #F0EBE0;
+            --guts-rust: #C7543D;
+            --guts-rust-bg: #4A2B24;
+        }
+
+        html,
+        body,
+        #canvas {
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        body {
+            color: var(--guts-text);
+            background-color: var(--guts-bg);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #canvas {
+            display: block;
+        }
+
+        #canvas:focus {
+            outline: none;
+        }
+
+        /* Painted above #status (which JavaScript would otherwise remove) so
+           the message is visible when scripts are disabled. */
+        noscript {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--guts-bg);
+            font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+        }
+
+        #status {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background-color: var(--guts-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        #status-splash {
+            width: min(760px, 82vw);
+            height: auto;
+            animation: status-splash-pulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes status-splash-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .55;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #status-splash {
+                animation: none;
+            }
+
+            #status-progress:not([value]) {
+                animation: none;
+            }
+        }
+
+        #status-progress {
+            width: min(60%, 320px);
+            height: 12px;
+            display: none;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1px solid var(--guts-border);
+            border-radius: 2px;
+            background: var(--guts-bg-deep);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        #status-progress::-webkit-progress-bar {
+            background: transparent;
+        }
+
+        #status-progress::-webkit-progress-value {
+            background: linear-gradient(90deg, var(--guts-gold-dim), var(--guts-gold) 55%, var(--guts-gold-bright));
+            box-shadow: 0 0 8px rgba(217, 173, 82, 0.35);
+        }
+
+        #status-progress::-moz-progress-bar {
+            background: linear-gradient(90deg, var(--guts-gold-dim), var(--guts-gold) 55%, var(--guts-gold-bright));
+        }
+
+        #status-progress:not([value]) {
+            background-image: linear-gradient(90deg, transparent 0 35%, var(--guts-gold) 35% 55%, transparent 55% 100%);
+            background-size: 200% 100%;
+            animation: status-progress-indeterminate 1.4s linear infinite;
+        }
+
+        @keyframes status-progress-indeterminate {
+            from {
+                background-position: 100% 0;
+            }
+
+            to {
+                background-position: -100% 0;
+            }
+        }
+
+        #status-notice {
+            color: #E7B2A3;
+            font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin: 0 2rem;
+            max-width: min(760px, 86vw);
+            text-align: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+            /* Failure notices carry meaningful newlines (missing-feature lists). */
+            white-space: pre-line;
+            z-index: 1;
+            display: none;
+        }
+
+        #status-text {
+            font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: normal;
+            text-transform: uppercase;
+            color: rgba(217, 173, 82, 0.85);
+            text-shadow: 0 0 12px rgba(217, 173, 82, 0.28), 0 1px 2px rgba(0, 0, 0, 0.7);
+            text-align: center;
+            max-width: 80vw;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas">
+        Your browser does not support the canvas tag.
+    </canvas>
+
+    <noscript>
+        Your browser does not support JavaScript.
+    </noscript>
+
+    <div id="status">
+        <!-- Logo from the Godot project (assets/logo/logo.png). -->
+        <img id="status-splash" src="splash.png" alt="Loading">
+        <div id="status-text"></div>
+        <progress id="status-progress" aria-label="Loading progress"></progress>
+        <div id="status-notice" role="alert"></div>
+    </div>
+
+    <script src="godot.js"></script>
+    <script>
+        const GODOT_CONFIG = {
+            'args': [],
+            'canvasResizePolicy': 2,
+            'ensureCrossOriginIsolationHeaders': false,
+            'executable': 'godot',
+            'experimentalVK': false,
+            'focusCanvas': true,
+            'gdextensionLibs': []
+        };
+        const GODOT_THREADS_ENABLED = false;
+
+        function startGodot() {
+            performance.mark('2dog:boot');
+
+            const statusOverlay = document.getElementById('status');
+            const statusProgress = document.getElementById('status-progress');
+            const statusNotice = document.getElementById('status-notice');
+
+            let initializing = true;
+            let statusMode = '';
+
+            function setStatusMode(mode) {
+                if (statusMode === mode || !initializing) {
+                    return;
+                }
+                if (mode === 'hidden') {
+                    statusOverlay.style.display = 'none';
+                    initializing = false;
+                    return;
+                }
+                statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
+                statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+                statusMode = mode;
+            }
+
+            function displayFailureNotice(err) {
+                console.error(err);
+                const statusText = document.getElementById('status-text');
+                if (statusText)
+                    statusText.style.display = 'none';
+                statusNotice.textContent = typeof err?.message === 'string' ? err.message : String(err);
+                setStatusMode('notice');
+                initializing = false;
+            }
+
+            let downloadsDone = false;
+
+            function reportProgress(current, total) {
+                if (!downloadsDone && total > 0 && current >= total) {
+                    downloadsDone = true;
+                    performance.mark('2dog:downloads-done');
+                }
+                // Determinate while the size-tracked downloads run, then back
+                // to indeterminate for the tail (.NET runtime files and engine
+                // startup have no known total).
+                if (current > 0 && total > 0 && current < total) {
+                    statusProgress.value = current;
+                    statusProgress.max = total;
+                } else {
+                    statusProgress.removeAttribute('value');
+                    statusProgress.removeAttribute('max');
+                }
+            }
+
+            // The gz pack path re-points this at a merged reporter.
+            let engineProgress = reportProgress;
+
+            function startWithGzPack(fileSizes, makeEngine) {
+                // A rejected probe (network error, service worker failure)
+                // falls back to the uncompressed pack exactly like a 404.
+                return fetch('godot.pck.gz').catch(() => null).then((response) => {
+                    if (!response || !response.ok || !response.body) {
+                        console.warn('2dog: godot.pck.gz unavailable, falling back to godot.pck');
+                        return makeEngine('').startGame({});
+                    }
+                    const engine = makeEngine('.gz');
+                    // The engine only downloads the wasm here; this page fetches
+                    // and inflates the pack, merging both into one progress bar
+                    // (compressed pack bytes against its Content-Length).
+                    let pckLoaded = 0;
+                    let wasmLoaded = 0;
+                    let wasmTotal = fileSizes['godot.wasm'] || 0;
+                    const pckTotal = Number(response.headers.get('Content-Length')) || 0;
+                    const report = () => reportProgress(wasmLoaded + pckLoaded,
+                        wasmTotal > 0 && pckTotal > 0 ? wasmTotal + pckTotal : 0);
+                    engineProgress = (current, total) => {
+                        wasmLoaded = current;
+                        if (total > 0) wasmTotal = total;
+                        report();
+                    };
+                    const counted = new TransformStream({
+                        transform(chunk, controller) {
+                            pckLoaded += chunk.byteLength;
+                            report();
+                            controller.enqueue(chunk);
+                        },
+                    });
+                    const pack = new Response(
+                        response.body.pipeThrough(counted).pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+                    return Promise.all([
+                        engine.init(GODOT_CONFIG['executable']),
+                        pack.then((buffer) => engine.preloadFile(buffer, 'godot.pck')),
+                    ]).then(() => engine.start({ 'args': ['--main-pack', 'godot.pck'].concat(GODOT_CONFIG['args']) }));
+                });
+            }
+
+            function reportTimings() {
+                performance.mark('2dog:first-frame');
+                const total = performance.measure('2dog:total', '2dog:boot', '2dog:first-frame').duration;
+                let text = '2dog: first frame ' + Math.round(total) + ' ms after boot';
+                if (downloadsDone) {
+                    const tail = performance.measure('2dog:tail', '2dog:downloads-done', '2dog:first-frame').duration;
+                    text += ' (' + Math.round(total - tail) + ' ms downloading, ' + Math.round(tail) + ' ms starting)';
+                }
+                console.log(text);
+                // Detail table on demand (?2dog-timing). transferSize reads 0
+                // for memory-cache hits - measure with caching disabled.
+                if (!new URLSearchParams(location.search).has('2dog-timing')) {
+                    return;
+                }
+                const rows = performance.getEntriesByType('resource')
+                    .filter((entry) => entry.transferSize > 100000)
+                    .sort((a, b) => b.transferSize - a.transferSize)
+                    .map((entry) => ({
+                        file: entry.name.replace(/.*\//, ''),
+                        'wire kB': Math.round(entry.transferSize / 1000),
+                        ms: Math.round(entry.duration),
+                    }));
+                if (rows.length) console.table(rows);
+            }
+
+            const missing = Engine.getMissingFeatures({
+                threads: GODOT_THREADS_ENABLED,
+            });
+
+            if (missing.length !== 0) {
+                const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+                displayFailureNotice(missingMsg + missing.join('\n'));
+                return;
+            }
+
+            // Exact sizes written by the publish make the bar determinate;
+            // without the manifest it stays indeterminate (Content-Length is
+            // the compressed size on hosts that gzip, so headers lie).
+            return fetch('twodog.sizes.json')
+                .then((response) => (response.ok ? response.json() : {}))
+                .catch(() => ({}))
+                .then((fileSizes) => {
+                    // The suffix decides which files the engine fetches, so
+                    // the Engine is only constructed after the pack probe has
+                    // picked a path - a '.gz'-configured engine in the
+                    // fallback would re-request the sibling that just 404'd.
+                    const makeEngine = (suffix) => {
+                        GODOT_CONFIG['fileSizes'] = fileSizes;
+                        GODOT_CONFIG['onProgress'] = (current, total) => engineProgress(current, total);
+                        // Newer engines also inflate .gz siblings themselves
+                        // (godot.wasm.gz included); older ones ignore this key.
+                        GODOT_CONFIG['precompressedSuffix'] = suffix;
+                        return new Engine(GODOT_CONFIG);
+                    };
+                    setStatusMode('progress');
+                    const started = twodogGz
+                        ? startWithGzPack(fileSizes, makeEngine)
+                        : makeEngine('').startGame({});
+                    return started.then(() => {
+                        reportTimings();
+                        setStatusMode('hidden');
+                    }, displayFailureNotice);
+                })
+                .catch(displayFailureNotice);
+        }
+    </script>
+    <script>
+        (function () {
+            const BUILD_ID = window.GUTS_BUILD_ID && !window.GUTS_BUILD_ID.startsWith('__')
+                ? window.GUTS_BUILD_ID
+                : null;
+            const EXPECTED_CACHE = BUILD_ID ? 'guts-' + BUILD_ID : null;
+            const RELOAD_KEY = 'guts-sw-reloaded-' + (BUILD_ID || 'dev');
+            const VERSION_TIMEOUT = 2000;
+            const CONTROLLER_TIMEOUT = 30000;
+            const UPDATE_TIMEOUT = 10000;
+            const UPDATE_WAIT_TIMEOUT = 15000;
+            const BOOT_STATUS_DELAY = 400;
+            const UPDATE_RELOAD_DELAY = 600;
+            const LATE_UPDATE_WINDOW = 60000;
+            const CACHE_RETRIES = 8;
+            const CACHE_RETRY_DELAY = 800;
+
+            let currentCache = '';
+            let bootStatusTimer = 0;
+            let updateReloadPending = false;
+
+            function showBootStatus(text) {
+                if (bootStatusTimer) {
+                    clearTimeout(bootStatusTimer);
+                    bootStatusTimer = 0;
+                }
+
+                const overlay = document.getElementById('status');
+                const bar = document.getElementById('status-progress');
+                const label = document.getElementById('status-text');
+                const notice = document.getElementById('status-notice');
+                if (!overlay || !bar || !label)
+                    return;
+
+                // A failure message owns the overlay.
+                if (notice && notice.style.display === 'block')
+                    return;
+
+                overlay.style.display = 'flex';
+                bar.style.display = 'block';
+                bar.removeAttribute('value');
+                bar.removeAttribute('max');
+                label.textContent = text;
+                label.style.display = 'block';
+            }
+
+            // Fast launches must not flash the update caption.
+            function scheduleBootStatus(text, delayMs) {
+                bootStatusTimer = setTimeout(() => showBootStatus(text), delayMs);
+            }
+
+            function start(cache) {
+                showBootStatus('Загрузка игры…');
+                currentCache = cache || '';
+                window.GUTS_CACHE_VERSION = currentCache;
+                sessionStorage.removeItem(RELOAD_KEY);
+
+                const started = startGodot();
+                if (started && typeof started.then === 'function')
+                    started.then(() => ensureOfflineCache(currentCache)).catch(() => { });
+
+                if (navigator.storage && navigator.storage.persist) {
+                    navigator.storage.persist().catch(() => { });
+                }
+            }
+
+            function askCacheVersion(worker) {
+                return new Promise((resolve) => {
+                    const channel = new MessageChannel();
+                    const timer = setTimeout(() => resolve(''), VERSION_TIMEOUT);
+
+                    channel.port1.onmessage = (event) => {
+                        if (event.data && event.data.type === 'CACHE_VERSION') {
+                            clearTimeout(timer);
+                            resolve(event.data.cache || '');
+                        }
+                    };
+
+                    worker.postMessage({ type: 'GET_CACHE_VERSION' }, [channel.port2]);
+                });
+            }
+
+            function waitForController(timeout) {
+                if (navigator.serviceWorker.controller)
+                    return Promise.resolve(true);
+
+                return new Promise((resolve) => {
+                    const timer = setTimeout(() => {
+                        navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+                        resolve(false);
+                    }, timeout);
+
+                    function onChange() {
+                        clearTimeout(timer);
+                        navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+                        resolve(true);
+                    }
+
+                    navigator.serviceWorker.addEventListener('controllerchange', onChange);
+                });
+            }
+
+            // Resolves true once the installing/waiting worker takes control,
+            // false if it fails (redundant) or time runs out.
+            function waitForUpdateControl(registration, timeout) {
+                const worker = registration.installing || registration.waiting;
+                if (!worker)
+                    return Promise.resolve(false);
+
+                return new Promise((resolve) => {
+                    let settled = false;
+                    const finish = (value) => {
+                        if (settled)
+                            return;
+                        settled = true;
+                        clearTimeout(timer);
+                        navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+                        worker.removeEventListener('statechange', onStateChange);
+                        resolve(value);
+                    };
+                    const timer = setTimeout(() => finish(false), timeout);
+
+                    function onChange() {
+                        finish(!!navigator.serviceWorker.controller);
+                    }
+
+                    function onStateChange() {
+                        if (worker.state === 'activated') {
+                            finish(true);
+                            return;
+                        }
+                        if (worker.state === 'redundant') {
+                            finish(false);
+                            return;
+                        }
+                        if (worker.state === 'installed') {
+                            worker.postMessage({ type: 'SKIP_WAITING' });
+                            // Some engines ignore skipWaiting; don't wait long.
+                            setTimeout(() => finish(false), 2000);
+                        }
+                    }
+
+                    navigator.serviceWorker.addEventListener('controllerchange', onChange);
+                    worker.addEventListener('statechange', onStateChange);
+                    onStateChange();
+                });
+            }
+
+            function delay(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
+            // A late activation only happens during startup. Show an explicit
+            // screen before reloading so it does not look like a glitch.
+            function watchLateUpdate() {
+                if (!EXPECTED_CACHE || updateReloadPending)
+                    return;
+
+                async function onChange() {
+                    if (updateReloadPending)
+                        return;
+
+                    const cache = await askCacheVersion(navigator.serviceWorker.controller);
+                    if (!cache || cache !== EXPECTED_CACHE)
+                        return;
+
+                    updateReloadPending = true;
+                    showBootStatus('Обновление приложения…');
+                    setTimeout(() => location.reload(), UPDATE_RELOAD_DELAY);
+                }
+
+                navigator.serviceWorker.addEventListener('controllerchange', onChange);
+
+                // Do not interrupt a game in progress much later.
+                setTimeout(() => {
+                    navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+                }, LATE_UPDATE_WINDOW);
+            }
+
+            function reloadOnce() {
+                if (sessionStorage.getItem(RELOAD_KEY)) {
+                    start(currentCache);
+                    return;
+                }
+
+                sessionStorage.setItem(RELOAD_KEY, '1');
+                location.reload();
+            }
+
+            function reloadForUpdate() {
+                showBootStatus('Обновление приложения…');
+                setTimeout(() => reloadOnce(), UPDATE_RELOAD_DELAY);
+            }
+
+            async function missingCacheEntries(cacheName) {
+                const cache = await caches.open(cacheName);
+                const required = [
+                    'godot.wasm',
+                    'godot.pck',
+                    '_framework/dotnet.boot.js',
+                    '_framework/dotnet.native.js',
+                    '_framework/GodotClient.web.wasm',
+                    '_framework/Guts.wasm',
+                    '_framework/System.Private.CoreLib.wasm',
+                ];
+                const missing = [];
+
+                for (const path of required) {
+                    const url = new URL(path, location.href).href;
+                    if (!(await cache.match(url)))
+                        missing.push(path);
+                }
+
+                return missing;
+            }
+
+            async function ensureOfflineCache(cacheName) {
+                if (!('serviceWorker' in navigator) || !window.isSecureContext)
+                    return;
+
+                if (!cacheName && navigator.serviceWorker.controller)
+                    cacheName = await askCacheVersion(navigator.serviceWorker.controller);
+
+                if (cacheName) {
+                    currentCache = cacheName;
+                    window.GUTS_CACHE_VERSION = cacheName;
+                }
+
+                if (EXPECTED_CACHE && cacheName !== EXPECTED_CACHE) {
+                    window.GUTS_CACHE_READY = false;
+                    console.warn('Guts: active cache is not the current build', cacheName, EXPECTED_CACHE);
+                    return;
+                }
+
+                if (!cacheName) {
+                    window.GUTS_CACHE_READY = false;
+                    return;
+                }
+
+                // Cache writes finish slightly after the engine reports start.
+                let missing = await missingCacheEntries(cacheName);
+                for (let attempt = 0; attempt < CACHE_RETRIES && missing.length; attempt++) {
+                    await delay(CACHE_RETRY_DELAY);
+                    missing = await missingCacheEntries(cacheName);
+                }
+
+                window.GUTS_CACHE_READY = missing.length === 0;
+                if (missing.length === 0) {
+                    notifyCacheReady();
+                    return;
+                }
+
+                console.warn('Guts: offline cache is incomplete', missing);
+            }
+
+            // Lets the worker drop the previous build once every loaded file
+            // lives in the current cache.
+            function notifyCacheReady() {
+                const controller = navigator.serviceWorker.controller;
+                if (!controller)
+                    return;
+
+                const urls = performance.getEntriesByType('resource')
+                    .map((entry) => entry.name)
+                    .filter((name) => {
+                        try {
+                            const url = new URL(name);
+                            return url.origin === location.origin &&
+                                !url.pathname.endsWith('/sw.js');
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                controller.postMessage({ type: 'CACHE_READY', urls });
+            }
+
+            async function boot() {
+                if (!('serviceWorker' in navigator) || !window.isSecureContext) {
+                    start('');
+                    return;
+                }
+
+                scheduleBootStatus('Проверка обновления…', BOOT_STATUS_DELAY);
+
+                const hadController = !!navigator.serviceWorker.controller;
+                let controllerChanged = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    controllerChanged = true;
+                });
+                let registration;
+
+                try {
+                    registration = await navigator.serviceWorker.register('sw.js', {
+                        updateViaCache: 'none',
+                    });
+                    const ready = await Promise.race([
+                        navigator.serviceWorker.ready.then(() => true),
+                        new Promise((resolve) => setTimeout(() => resolve(false), CONTROLLER_TIMEOUT)),
+                    ]);
+                    if (!ready) {
+                        console.warn('Guts: service worker did not activate, starting online');
+                        start('');
+                        return;
+                    }
+
+                    if (hadController) {
+                        await Promise.race([
+                            registration.update().catch(() => { }),
+                            new Promise((resolve) => setTimeout(resolve, UPDATE_TIMEOUT)),
+                        ]);
+                    }
+                } catch (error) {
+                    console.warn('Guts: service worker unavailable, starting online', error);
+                    start('');
+                    return;
+                }
+
+                if (registration.waiting) {
+                    // Older builds may not answer; the page then starts on the
+                    // current version and applies the update on the next launch.
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+
+                if (navigator.serviceWorker.controller) {
+                    let cache = await askCacheVersion(navigator.serviceWorker.controller);
+                    let matches = !EXPECTED_CACHE || cache === EXPECTED_CACHE;
+                    const updating = !!(registration.installing || registration.waiting);
+
+                    // The update can take control while the version is being
+                    // queried; re-read the controller instead of missing it.
+                    if (!matches && controllerChanged) {
+                        const latest = await askCacheVersion(navigator.serviceWorker.controller);
+                        if (latest) {
+                            cache = latest;
+                            matches = !EXPECTED_CACHE || cache === EXPECTED_CACHE;
+                        }
+                    }
+
+                    if (matches && !updating) {
+                        watchLateUpdate();
+                        start(cache);
+                        return;
+                    }
+
+                    // Old worker or new build: wait for the update to take control.
+                    showBootStatus('Загрузка обновления…');
+                    if (await waitForUpdateControl(registration, UPDATE_WAIT_TIMEOUT)) {
+                        reloadForUpdate();
+                        return;
+                    }
+
+                    // Activation may have completed between the wait and here.
+                    const latest = await askCacheVersion(navigator.serviceWorker.controller);
+                    if (EXPECTED_CACHE && latest === EXPECTED_CACHE) {
+                        reloadForUpdate();
+                        return;
+                    }
+
+                    // Some engines keep the new worker waiting forever. A fresh
+                    // registration installs it without an active worker.
+                    if (EXPECTED_CACHE && navigator.onLine && (registration.waiting || registration.installing)) {
+                        console.warn('Guts: worker is stuck waiting, reinstalling');
+                        await registration.unregister().catch(() => { });
+                        reloadForUpdate();
+                        return;
+                    }
+
+                    // Don't hang forever; run the current build and watch for
+                    // an activation that arrives while the game is starting.
+                    watchLateUpdate();
+                    start(cache);
+                    return;
+                }
+
+                // First load: wait until the new worker controls the page.
+                showBootStatus('Подготовка кэша…');
+                if (await waitForController(CONTROLLER_TIMEOUT)) {
+                    reloadOnce();
+                    return;
+                }
+
+                watchLateUpdate();
+                start('');
+            }
+
+            boot();
+        }());
+    </script>
+</body>
+
+</html>
