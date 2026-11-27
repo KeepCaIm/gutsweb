@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2B2822">
+    <meta name="description" content="О проекте GUTS — цифровой реализации коллекционной карточной игры «Берсерк»: кампания, локальные бои и отдельные сценарии.">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="https://keepcaim.github.io/gutsweb/about.html">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <title>О проекте — Guts</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --guts-bg: #2B2822;
+            --guts-panel: #35312A;
+            --guts-gold: #D9AD52;
+            --guts-text: #F0EBE0;
+            --guts-muted: rgba(240, 235, 224, 0.7);
+            --guts-border: #6B5C42;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--guts-bg);
+            color: var(--guts-text);
+            font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        main {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .logo {
+            display: block;
+            width: min(420px, 100%);
+            height: auto;
+            margin: 0 auto 1.5rem;
+        }
+
+        h1,
+        h2 {
+            color: var(--guts-gold);
+            line-height: 1.2;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 1rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin: 1.75rem 0 0.5rem;
+        }
+
+        p {
+            margin: 0.75rem 0;
+        }
+
+        .notice {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--guts-border);
+            color: var(--guts-muted);
+            font-size: 0.9rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        a {
+            color: var(--guts-gold);
+        }
+
+        .button {
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            border: 1px solid var(--guts-border);
+            border-radius: 4px;
+            background-color: var(--guts-panel);
+            color: var(--guts-gold);
+            text-decoration: none;
+        }
+
+        .button:hover {
+            border-color: var(--guts-gold);
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <img class="logo" src="splash.png" alt="Guts — ККИ «Берсерк»">
+        <h1>О проекте</h1>
+
+        <p>GUTS — цифровая реализация коллекционной карточной игры «Берсерк». Здесь можно сражаться с компьютером или человеком за одним устройством, проходить кампанию и отдельные сценарии.</p>
+
+        <h2>Кампания</h2>
+        <p>Одиночное путешествие с отрядом героя: проходите испытания, обретайте новых союзников и получайте навыки, которые помогут одолеть зло, засевшее в замке владык слуа.</p>
+
+        <h2>Сценарии</h2>
+        <p>Битвы с необычными условиями и собственными механиками.</p>
+
+        <p class="notice">Неофициальный фанатский проект по мотивам ККИ «Берсерк». Права на «Берсерк» и его материалы принадлежат ООО «Мир Хобби»; проект не связан с правообладателем.</p>
+
+        <div class="actions">
+            <a class="button" href="./">Играть</a>
+        </div>
+    </main>
+</body>
+
+</html>
